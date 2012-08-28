@@ -1,4 +1,5 @@
 <?php
+namespace Rabbit\AMQP\Wire;
 
   /**
    * AMQP protocol serialization/deserialization to/from wire format.
@@ -12,8 +13,6 @@
    *
    * http://www.mysqlperformanceblog.com/2007/03/27/integers-in-php-running-with-scissors-and-portability/
    */
-
-require_once('hexdump.inc');
 
   /**
    * AMQP protocol decimal value.

@@ -1,4 +1,5 @@
 <?php
+namespace Rabbit\AMQP;
   /**
    * Simple AMQP client library for AMQP for protocol version 0.8
    *
@@ -9,6 +10,9 @@
 
 require_once('amqp_wire.inc');
 require_once('hexdump.inc');
+
+use \Rabbit\AMQP\Hexdump as Hexdump;
+use \Rabbit\AMQP\Wire as Wire;
 
 function debug_msg($s)
 {
@@ -24,7 +28,7 @@ function methodSig($a)
 }
 
 
-class AMQPException extends Exception
+class AMQPException extends \Exception
 {
     public function __construct($reply_code, $reply_text, $method_sig)
     {
@@ -191,7 +195,7 @@ class AbstractChannel
         if($frame_type != 2)
             throw new Exception("Expecting Content header");
 
-        $payload_reader = new AMQPReader(substr($payload,0,12));
+        $payload_reader = new Wire\AMQPReader(substr($payload,0,12));
         $class_id = $payload_reader->read_short();
         $weight = $payload_reader->read_short();
 
@@ -291,7 +295,7 @@ class AbstractChannel
 
             $method_sig_array = unpack("n2", substr($payload,0,4));
             $method_sig = "" . $method_sig_array[1] . "," . $method_sig_array[2];
-            $args = new AMQPReader(substr($payload,4));
+            $args = new Wire\AMQPReader(substr($payload,4));
 
             if($this->debug)
             {
@@ -382,7 +386,7 @@ class AMQPConnection extends AbstractChannel
 
         if($user && $password)
         {
-            $login_response = new AMQPWriter();
+            $login_response = new Wire\AMQPWriter();
             $login_response->write_table(array("LOGIN" => array('S',$user),
                                                "PASSWORD" => array('S',$password)));
             $login_response = substr($login_response->getvalue(),4); //Skip the length
@@ -422,7 +426,7 @@ class AMQPConnection extends AbstractChannel
 
             stream_set_timeout($this->sock, $read_write_timeout);
             stream_set_blocking($this->sock, 1);
-            $this->input = new AMQPReader(null, $this->sock);
+            $this->input = new Wire\AMQPReader(null, $this->sock);
 
             $this->write(AMQPConnection::$AMQP_PROTOCOL_HEADER);
             $this->wait(array("10,10"));
@@ -472,7 +476,7 @@ class AMQPConnection extends AbstractChannel
     {
         if($this->debug)
         {
-          debug_msg("< [hex]:\n" . hexdump($data, $htmloutput = false, $uppercase = true, $return = true));
+          debug_msg("< [hex]:\n" . \Hexdump\hexdump($data, $htmloutput = false, $uppercase = true, $return = true));
         }
 
         $len = strlen($data);
@@ -522,7 +526,7 @@ class AMQPConnection extends AbstractChannel
     public function send_content($channel, $class_id, $weight, $body_size,
                         $packed_properties, $body)
     {
-        $pkt = new AMQPWriter();
+        $pkt = new Wire\AMQPWriter();
 
         $pkt->write_octet(2);
         $pkt->write_short($channel);
@@ -541,7 +545,7 @@ class AMQPConnection extends AbstractChannel
         {
             $payload = substr($body,0, $this->frame_max-8);
             $body = substr($body,$this->frame_max-8);
-            $pkt = new AMQPWriter();
+            $pkt = new Wire\AMQPWriter();
 
             $pkt->write_octet(3);
             $pkt->write_short($channel);
@@ -557,10 +561,10 @@ class AMQPConnection extends AbstractChannel
 
     protected function send_channel_method_frame($channel, $method_sig, $args="")
     {
-        if($args instanceof AMQPWriter)
+        if($args instanceof Wire\AMQPWriter)
             $args = $args->getvalue();
 
-        $pkt = new AMQPWriter();
+        $pkt = new Wire\AMQPWriter();
 
         $pkt->write_octet(1);
         $pkt->write_short($channel);
@@ -641,7 +645,7 @@ class AMQPConnection extends AbstractChannel
      */
     public function close($reply_code=0, $reply_text="", $method_sig=array(0, 0))
     {
-        $args = new AMQPWriter();
+        $args = new Wire\AMQPWriter();
         $args->write_short($reply_code);
         $args->write_shortstr($reply_text);
         $args->write_short($method_sig[0]); // class_id
@@ -709,7 +713,7 @@ class AMQPConnection extends AbstractChannel
 
     protected function x_open($virtual_host, $capabilities="", $insist=false)
     {
-        $args = new AMQPWriter();
+        $args = new Wire\AMQPWriter();
         $args->write_shortstr($virtual_host);
         $args->write_shortstr($capabilities);
         $args->write_bit($insist);
@@ -763,7 +767,7 @@ class AMQPConnection extends AbstractChannel
      */
     protected function x_secure_ok($response)
     {
-        $args = new AMQPWriter();
+        $args = new Wire\AMQPWriter();
         $args->write_longstr($response);
         $this->send_method_frame(array(10, 21), $args);
     }
@@ -794,7 +798,7 @@ class AMQPConnection extends AbstractChannel
 
     protected function x_start_ok($client_properties, $mechanism, $response, $locale)
     {
-        $args = new AMQPWriter();
+        $args = new Wire\AMQPWriter();
         $args->write_table($client_properties);
         $args->write_shortstr($mechanism);
         $args->write_longstr($response);
@@ -823,7 +827,7 @@ class AMQPConnection extends AbstractChannel
      */
     protected function x_tune_ok($channel_max, $frame_max, $heartbeat)
     {
-        $args = new AMQPWriter();
+        $args = new Wire\AMQPWriter();
         $args->write_short($channel_max);
         $args->write_long($frame_max);
         $args->write_short($heartbeat);
@@ -927,7 +931,7 @@ class AMQPChannel extends AbstractChannel
                           $reply_text="",
                           $method_sig=array(0, 0))
     {
-        $args = new AMQPWriter();
+        $args = new Wire\AMQPWriter();
         $args->write_short($reply_code);
         $args->write_shortstr($reply_text);
         $args->write_short($method_sig[0]); // class_id
@@ -966,7 +970,7 @@ class AMQPChannel extends AbstractChannel
      */
     public function flow($active)
     {
-        $args = new AMQPWriter();
+        $args = new Wire\AMQPWriter();
         $args->write_bit($active);
         $this->send_method_frame(array(20, 20), $args);
         return $this->wait(array(
@@ -982,7 +986,7 @@ class AMQPChannel extends AbstractChannel
 
     protected function x_flow_ok($active)
     {
-        $args = new AMQPWriter();
+        $args = new Wire\AMQPWriter();
         $args->write_bit($active);
         $this->send_method_frame(array(20, 21), $args);
     }
@@ -997,7 +1001,7 @@ class AMQPChannel extends AbstractChannel
         if($this->is_open)
             return;
 
-        $args = new AMQPWriter();
+        $args = new Wire\AMQPWriter();
         $args->write_shortstr($out_of_band);
         $this->send_method_frame(array(20, 10), $args);
         return $this->wait(array(
@@ -1020,7 +1024,7 @@ class AMQPChannel extends AbstractChannel
     public function access_request($realm, $exclusive=false,
         $passive=false, $active=false, $write=false, $read=false)
     {
-        $args = new AMQPWriter();
+        $args = new Wire\AMQPWriter();
         $args->write_shortstr($realm);
         $args->write_bit($exclusive);
         $args->write_bit($passive);
@@ -1059,7 +1063,7 @@ class AMQPChannel extends AbstractChannel
         if($arguments==NULL)
             $arguments = array();
 
-        $args = new AMQPWriter();
+        $args = new Wire\AMQPWriter();
         if($ticket != NULL)
             $args->write_short($ticket);
         else
@@ -1093,7 +1097,7 @@ class AMQPChannel extends AbstractChannel
     public function exchange_delete($exchange, $if_unused=false,
         $nowait=false, $ticket=NULL)
     {
-        $args = new AMQPWriter();
+        $args = new Wire\AMQPWriter();
         if($ticket != NULL)
             $args->write_short($ticket);
         else
@@ -1126,7 +1130,7 @@ class AMQPChannel extends AbstractChannel
         if($arguments == NULL)
             $arguments = array();
 
-        $args = new AMQPWriter();
+        $args = new Wire\AMQPWriter();
         if($ticket != NULL)
             $args->write_short($ticket);
         else
@@ -1160,7 +1164,7 @@ class AMQPChannel extends AbstractChannel
         if($arguments == NULL)
             $arguments = array();
 
-        $args = new AMQPWriter();
+        $args = new Wire\AMQPWriter();
         if($ticket != NULL)
             $args->write_short($ticket);
         else
@@ -1198,7 +1202,7 @@ class AMQPChannel extends AbstractChannel
         if($arguments == NULL)
             $arguments = array();
 
-        $args = new AMQPWriter();
+        $args = new Wire\AMQPWriter();
         if($ticket != NULL)
             $args->write_short($ticket);
         else
@@ -1236,7 +1240,7 @@ class AMQPChannel extends AbstractChannel
     public function queue_delete($queue="", $if_unused=false, $if_empty=false,
         $nowait=false, $ticket=NULL)
     {
-        $args = new AMQPWriter();
+        $args = new Wire\AMQPWriter();
         if($ticket != NULL)
             $args->write_short($ticket);
         else
@@ -1267,7 +1271,7 @@ class AMQPChannel extends AbstractChannel
      */
     public function queue_purge($queue="", $nowait=false, $ticket=NULL)
     {
-        $args = new AMQPWriter();
+        $args = new Wire\AMQPWriter();
         if($ticket != NULL)
             $args->write_short($ticket);
         else
@@ -1295,7 +1299,7 @@ class AMQPChannel extends AbstractChannel
      */
     public function basic_ack($delivery_tag, $multiple=false)
     {
-        $args = new AMQPWriter();
+        $args = new Wire\AMQPWriter();
         $args->write_longlong($delivery_tag);
         $args->write_bit($multiple);
         $this->send_method_frame(array(60, 80), $args);
@@ -1306,7 +1310,7 @@ class AMQPChannel extends AbstractChannel
      */
     public function  basic_cancel($consumer_tag, $nowait=false)
     {
-        $args = new AMQPWriter();
+        $args = new Wire\AMQPWriter();
         $args->write_shortstr($consumer_tag);
         $args->write_bit($nowait);
         $this->send_method_frame(array(60, 30), $args);
@@ -1331,7 +1335,7 @@ class AMQPChannel extends AbstractChannel
                                   $no_ack=false, $exclusive=false, $nowait=false,
                                   $callback=NULL, $ticket=NULL)
     {
-        $args = new AMQPWriter();
+        $args = new Wire\AMQPWriter();
         if($ticket != NULL)
             $args->write_short($ticket);
         else
@@ -1395,7 +1399,7 @@ class AMQPChannel extends AbstractChannel
      */
     public function basic_get($queue="", $no_ack=false, $ticket=NULL)
     {
-        $args = new AMQPWriter();
+        $args = new Wire\AMQPWriter();
         if($ticket != NULL)
             $args->write_short($ticket);
         else
@@ -1445,7 +1449,7 @@ class AMQPChannel extends AbstractChannel
                                   $mandatory=false, $immediate=false,
                                   $ticket=NULL)
     {
-        $args = new AMQPWriter();
+        $args = new Wire\AMQPWriter();
         if($ticket != NULL)
             $args->write_short($ticket);
         else
@@ -1468,7 +1472,7 @@ class AMQPChannel extends AbstractChannel
      */
     public function basic_qos($prefetch_size, $prefetch_count, $a_global)
     {
-        $args = new AMQPWriter();
+        $args = new Wire\AMQPWriter();
         $args->write_long($prefetch_size);
         $args->write_short($prefetch_count);
         $args->write_bit($a_global);
@@ -1491,7 +1495,7 @@ class AMQPChannel extends AbstractChannel
      */
     public function basic_recover($requeue=false)
     {
-        $args = new AMQPWriter();
+        $args = new Wire\AMQPWriter();
         $args->write_bit($requeue);
         $this->send_method_frame(array(60, 100), $args);
     }
@@ -1501,7 +1505,7 @@ class AMQPChannel extends AbstractChannel
      */
     public function basic_reject($delivery_tag, $requeue)
     {
-        $args = new AMQPWriter();
+        $args = new Wire\AMQPWriter();
         $args->write_longlong($delivery_tag);
         $args->write_bit($requeue);
         $this->send_method_frame(array(60, 90), $args);
@@ -1577,7 +1581,7 @@ class AMQPChannel extends AbstractChannel
 /**
  * A Message for use with the Channnel.basic_* methods.
  */
-class AMQPMessage extends GenericContent
+class AMQPMessage extends Wire\GenericContent
 {
     protected static $PROPERTIES = array(
         "content_type" => "shortstr",

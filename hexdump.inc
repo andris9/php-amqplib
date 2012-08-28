@@ -1,4 +1,6 @@
 <?php
+namespace Rabbit\AMQP\Hexdump;
+
 /**
  * View any string as a hexdump.
  *
