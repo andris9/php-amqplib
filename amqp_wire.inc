@@ -30,7 +30,7 @@ class AMQPDecimal
     public function __construct($n, $e)
     {
         if($e < 0)
-            throw new Exception("Decimal exponent value must be unsigned!");
+            throw new \Exception("Decimal exponent value must be unsigned!");
         $this->n = $n;
         $this->e = $e;
     }
@@ -75,7 +75,7 @@ class AMQPWriter
             $x=bcdiv($x,'256', 0);
         }
         if($x!=0)
-            throw new Exception("Value too big!");
+            throw new \Exception("Value too big!");
         return $res;
     }
 
@@ -134,7 +134,7 @@ class AMQPWriter
     public function write_octet($n)
     {
         if($n < 0 || $n > 255)
-            throw new Exception('Octet out of range 0..255');
+            throw new \Exception('Octet out of range 0..255');
         $this->flushbits();
         $this->out .= chr($n);
     }
@@ -145,7 +145,7 @@ class AMQPWriter
     public function write_short($n)
     {
         if($n < 0 ||  $n > 65535)
-            throw new Exception('Octet out of range 0..65535');
+            throw new \Exception('Octet out of range 0..65535');
         $this->flushbits();
         $this->out .= pack('n', $n);
     }
@@ -184,7 +184,7 @@ class AMQPWriter
     {
         $this->flushbits();
         if(strlen($s) > 255)
-            throw new Exception('String too long');
+            throw new \Exception('String too long');
         $this->write_octet(strlen($s));
         $this->out .= $s;
     }
@@ -273,7 +273,7 @@ class AMQPReader
             $this->is64bits = false;
 
         if(!function_exists("bcmul"))
-            throw new Exception("'bc math' module required");
+            throw new \Exception("'bc math' module required");
 
         $this->buffer_read_timeout = 5; // in seconds
     }
@@ -313,13 +313,13 @@ class AMQPReader
             }
 
             if(strlen($res)!=$n)
-                throw new Exception ("Error reading data. Recevived " .
+                throw new \Exception ("Error reading data. Recevived " .
                                      strlen($res) . " instead of expected $n bytes");
             $this->offset += $n;
         } else
         {
             if(strlen($this->str) < $n)
-                throw new Exception ("Error reading data. Requested $n bytes while string buffer has only " .
+                throw new \Exception ("Error reading data. Requested $n bytes while string buffer has only " .
                                      strlen($this->str));
             $res = substr($this->str,0,$n);
             $this->str = substr($this->str,$n);
@@ -434,7 +434,7 @@ class AMQPReader
         $this->bitcount = $this->bits = 0;
         $slen = $this->read_php_int();
         if($slen<0)
-            throw new Exception("Strings longer than supported on this platform");
+            throw new \Exception("Strings longer than supported on this platform");
         return $this->rawread($slen);
     }
 
@@ -456,7 +456,7 @@ class AMQPReader
         $this->bitcount = $this->bits = 0;
         $tlen = $this->read_php_int();
         if($tlen<0)
-            throw new Exception("Table is longer than supported");
+            throw new \Exception("Table is longer than supported");
         $table_data = new AMQPReader($this->rawread($tlen));
         $result = array();
         while($table_data->tell() < $tlen)
@@ -534,7 +534,7 @@ class GenericContent
             if(array_key_exists($name,$this->delivery_info))
                 return $this->delivery_info[$name];
 
-        throw new Exception("No such property");
+        throw new \Exception("No such property");
     }
 
 

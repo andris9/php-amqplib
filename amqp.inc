@@ -162,7 +162,7 @@ class AbstractChannel
     function dispatch($method_sig, $args, $content)
     {
         if(!array_key_exists($method_sig, $this->method_map))
-            throw new Exception("Unknown AMQP method $method_sig");
+            throw new \Exception("Unknown AMQP method $method_sig");
 
         $amqp_method = $this->method_map[$method_sig];
         if($content == NULL)
@@ -193,7 +193,7 @@ class AbstractChannel
         $frame_type = $frm[0];
         $payload = $frm[1];
         if($frame_type != 2)
-            throw new Exception("Expecting Content header");
+            throw new \Exception("Expecting Content header");
 
         $payload_reader = new Wire\AMQPReader(substr($payload,0,12));
         $class_id = $payload_reader->read_short();
@@ -211,7 +211,7 @@ class AbstractChannel
             $frame_type = $frm[0];
             $payload = $frm[1];
             if($frame_type != 3)
-                throw new Exception("Expecting Content body, received frame type $frame_type");
+                throw new \Exception("Expecting Content body, received frame type $frame_type");
             $body_parts[] = $payload;
             $body_received = bcadd($body_received, strlen($payload));
         }
@@ -223,7 +223,7 @@ class AbstractChannel
             try
             {
                 $msg->body = $msg->body->decode($msg->content_encoding);
-            } catch (Exception $e) {
+            } catch (\Exception $e) {
               if($this->debug)
               {
                 debug_msg("Ignoring body decoding exception: " . $e->getMessage());
@@ -288,10 +288,10 @@ class AbstractChannel
             $payload = $frm[1];
 
             if($frame_type != 1)
-                throw new Exception("Expecting AMQP method, received frame type: $frame_type");
+                throw new \Exception("Expecting AMQP method, received frame type: $frame_type");
 
             if(strlen($payload) < 4)
-                throw new Exception("Method frame too short");
+                throw new \Exception("Method frame too short");
 
             $method_sig_array = unpack("n2", substr($payload,0,4));
             $method_sig = "" . $method_sig_array[1] . "," . $method_sig_array[2];
@@ -421,7 +421,7 @@ class AMQPConnection extends AbstractChannel
 
             if (!$this->sock)
             {
-                throw new Exception ("Error Connecting to server($errno): $errstr ");
+                throw new \Exception ("Error Connecting to server($errno): $errstr ");
             }
 
             stream_set_timeout($this->sock, $read_write_timeout);
@@ -484,7 +484,7 @@ class AMQPConnection extends AbstractChannel
         {
             if(false === ($written = fwrite($this->sock, $data)))
             {
-                throw new Exception ("Error sending data");
+                throw new \Exception ("Error sending data");
             }
             $len = $len - $written;
             if($len>0)
@@ -520,7 +520,7 @@ class AMQPConnection extends AbstractChannel
         for($i=1;$i<=$this->channel_max;$i++)
             if(!array_key_exists($i,$this->channels))
                 return $i;
-        throw new Exception("No free channel ids");
+        throw new \Exception("No free channel ids");
     }
 
     public function send_content($channel, $class_id, $weight, $body_size,
@@ -598,7 +598,7 @@ class AMQPConnection extends AbstractChannel
 
         $ch = $this->input->read_octet();
         if($ch != 0xCE)
-            throw new Exception(sprintf("Framing error, unexpected byte: %x", $ch));
+            throw new \Exception(sprintf("Framing error, unexpected byte: %x", $ch));
 
         return array($frame_type, $channel, $payload);
     }
